@@ -1,0 +1,20 @@
+{
+  "hmm-type": "new",
+  "init": "zero",
+  "note": "midikeys",
+  "time": "ms",
+  "quantisation": "50",
+  "layout": "note-time",
+  "pretrain": "yes",
+  "files": "midi/",
+  "retrain": "yes",
+  "train-type": "normal",
+  "triggering": "note-based",
+  "train-rate": "10",
+  "sample-rate": "10",
+  "nr-samples": "10",
+  "window-size": "15",
+  "weighting": "50"
+}
+
+

@@ -1,0 +1,70 @@
+@import 'common.scss';
+
+#ui {
+    position: absolute;
+    font-family: $font-family;
+	color: white;
+	margin: 20px;
+	z-index: 50;
+}
+
+#togContainer{
+    background: rgba(64, 64, 64, 0.3);
+    padding: 20px;
+    margin: 10px;
+}
+
+.control{
+    margin: 10px;
+    display: grid;
+    grid-template-columns: 150px auto auto auto auto;
+}
+
+select, button, input[type=text]{
+    font-family: $font-family;
+    border: 1px solid #f9bb2d;
+    color: white;
+}
+
+form.select{
+    width: 100px;
+}
+
+#topology, #training {
+    border: 1px solid #f9bb2d;
+    padding: 10px;
+    margin: 15px;
+    overflow: hidden;
+}
+
+select, button, input[type=text]{
+    background: black;
+}
+
+#topology-titlelabel, #training-titlelabel, #ui-titlelabel {
+    font-weight: bold;
+    color: #f9bb2d;
+}
+
+#submit, #updateHMM{
+    float: right;
+/*
+    margin-right: 10px;
+*/
+}
+
+#submit, #updateHMM, #saveHMM{
+    padding: 5px;
+}
+
+#training{
+    position: relative;
+}
+
+#pretrain_div {
+    margin-bottom: 30px;
+}
+
+#retrainlabel, #pretrainlabel, #tog{
+    font-weight: bold;
+}

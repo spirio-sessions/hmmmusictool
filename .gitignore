@@ -1,0 +1,17 @@
+node_modules
+
+static/build
+
+*.pyc
+
+.DS_Store
+models/training/drums_rnn_jazz_drums/logdir
+models/melody_rnn/data
+models/training/drums_rnn_techno_drums/logdir
+models/training/music_vae_jazz_drums/logdir
+temp.mid
+static/audio/drum_kits/dubstep
+static/audio/drum_kits/electronic
+static/audio/drum_kits/hiphop
+static/audio/drum_kits/percussion
+.idea/*
