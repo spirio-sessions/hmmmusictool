@@ -1,9 +1,11 @@
 import os
+import shutil
+
 from flask import send_file
 from flask_socketio import SocketIO
 import time
 import json
-from flask import Flask
+from flask import Flask, request
 from flask_cors import CORS
 from hmm_handler import HMMHandler
 import pickle
@@ -22,16 +24,15 @@ app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app, async_mode="eventlet")
 # socketio = SocketIO(app, async_handlers=False)
 socketio.init_app(app, cors_allowed_origins="*")
-hmm_handler = HMMHandler()
+# hmm_handler = HMMHandler()
 thread = None
 # thread_lock = Lock()
 # generator = Generator()
 
 cache = {}
-cache['keyup_notes'] = []
-cache['keydown_notes'] = []
-cache['hmm_list'] = []
-
+# cache['keyup_notes'] = []
+# cache['keydown_notes'] = []
+# cache['hmm_list'] = []
 
 @socketio.on('message')
 def handle_message(message):
@@ -40,27 +41,27 @@ def handle_message(message):
 
 @socketio.on('connect')
 def handle_connect():
-    update_hmm_list()
-    socketio.emit('setHmmList', cache['hmm_list'])
+    sid = request.sid
+    cache[sid] = {'keyup_notes': [], 'keydown_notes': [], 'hmm_handler': HMMHandler(), 'hmm_list': []}
+    # update_hmm_list(sid)
+    socketio.emit('setHmmList', cache[sid]['hmm_list'], room=sid)
 
 
-@socketio.on('reload')
-def handle_reload(message):
-    cache['keyup_notes'].clear()
-    cache['keydown_notes'].clear()
-    hmm_handler.__init__()
-    # update_hmm_list()
-    # socketio.emit('setHmmList', cache['hmm_list'])
-    # global thread
-    # # with thread_lock:
-    # if thread is None:
-    #     thread = socketio.start_background_task(background_thread)
-        # thread = tpool.execute(background_thread)
-        # thread = Thread(target=background_thread)
-        # thread.daemon = True
-        # thread.start()
-    # else:
-    #     print("..background thread is already running")
+@socketio.on('disconnect')
+def handle_disconnect():
+    sid = request.sid
+    cache.pop(request.sid)
+    path = 'pickle/' + sid + '/'
+    if os.path.exists(path):
+        shutil.rmtree(path)
+
+# @socketio.on('reload')
+# def handle_reload(message):
+#     cache['keyup_notes'].clear()
+#     cache['keydown_notes'].clear()
+#     hmm_handler.__init__()
+# update_hmm_list()
+# socketio.emit('setHmmList', cache['hmm_list'])
 
 
 # @socketio.on('getHmmList')
@@ -71,25 +72,29 @@ def handle_reload(message):
 
 @socketio.on('saveHMM')
 def handle_save(filename):
+    sid = request.sid
     ts = time.gmtime()
     hmm_name = filename + time.strftime("%Y%m%d%H%M%S", ts)
-    fn = 'pickle/' + hmm_name + '.pkl'
+    path = 'pickle/' + sid + '/'
+    os.mkdir(path)
+    fn = path + hmm_name + '.pkl'
     with open(fn, "wb") as file:
-        pickle.dump(hmm_handler, file)
+        pickle.dump(cache[sid]['hmm_handler'], file)
         file.close()
-    update_hmm_list()
-    socketio.emit('updateHmmList', hmm_name)
+    update_hmm_list(sid)
+    socketio.emit('updateHmmList', hmm_name, room=sid)
 
 
 @socketio.on('changeHMM')
 def handle_change(filename):
-    global hmm_handler
+    sid = request.sid
     if filename != 'new':
-        with open('pickle/' + filename + ".pkl", "rb") as file:
-            hmm_handler = pickle.load(file)
+        with open('pickle/' + sid + '/' + filename + ".pkl", "rb") as file:
+            cache[sid]['hmm_handler'] = pickle.load(file)
             file.close()
     else:
-        hmm_handler.__init__()
+        cache[sid]['hmm_handler'] = HMMHandler()
+    hmm_handler = cache[sid]['hmm_handler']
     ui_config = {
         'init': hmm_handler.init_type,
         'note': hmm_handler.note_type,
@@ -106,12 +111,14 @@ def handle_change(filename):
         'window-size': hmm_handler.window_size,
         'weighting': hmm_handler.weighting
     }
-    socketio.emit('uiConfig', ui_config)
+    socketio.emit('uiConfig', ui_config, room=sid)
 
 
 @socketio.on('updateHMM')
 def handle_update(json_string):
+    sid = request.sid
     json_object = json.loads(json_string)
+    hmm_handler = cache[sid]['hmm_handler']
     hmm_handler.train_vector = []
     hmm_handler.obs_vector = []
     hmm_handler.train = True if json_object['retrain'] == 'yes' else False
@@ -121,10 +128,12 @@ def handle_update(json_string):
     hmm_handler.train_diy = True if json_object['diy'] == 'diy' else False
     hmm_handler.train_rate = int(json_object['train-rate'])
     hmm_handler.weighting = int(json_object['weighting'])
+    cache[sid]['hmm_handler'] = hmm_handler
 
 
 @socketio.on('submit')
 def handle_submit(json_string):
+    sid = request.sid
     json_object = json.loads(json_string)
     init_type = json_object['init']
     note_type = json_object['note']
@@ -141,13 +150,13 @@ def handle_submit(json_string):
     files = json_object['files']
     pretrain = True if json_object['pretrain'] == 'yes' else False
     triggering = json_object['triggering']
-    hmm_handler.__init__(retrain, sample_rate, nr_samples, window_size, quantisation, layout, train_diy, train_rate,
-                         files, init_type, pretrain, weighting, note_type, time_type, triggering)
+    cache[sid]['hmm_handler'] = HMMHandler(retrain, sample_rate, nr_samples, window_size, quantisation, layout,
+                                                   train_diy, train_rate, files, init_type, pretrain, weighting, note_type, time_type, triggering)
     global thread
     if triggering == 'beat-based':
-        thread = socketio.start_background_task(background_thread)
-    cache['keyup_notes'].clear()
-    cache['keydown_notes'].clear()
+        thread = socketio.start_background_task(background_thread, sid)
+    cache[sid]['keyup_notes'].clear()
+    cache[sid]['keydown_notes'].clear()
 
 
 # @socketio.on('savemidi')
@@ -158,48 +167,51 @@ def handle_submit(json_string):
 
 @socketio.on('keydown')
 def handle_keydown(content):
-    cache['keydown_notes'].append([content['note'], time.time(), content['velocity']])
+    sid = request.sid
+    cache[sid]['keydown_notes'].append([content['note'], time.time(), content['velocity']])
     # print("DOWN")
     # print(cache)
-    if cache['keyup_notes']:
-        keyup = cache['keyup_notes'][-1]
-        keydown = cache['keydown_notes'][-1]
+    if cache[sid]['keyup_notes']:
+        keyup = cache[sid]['keyup_notes'][-1]
+        keydown = cache[sid]['keydown_notes'][-1]
         start_time = keyup[1]
         end_time = keydown[1]
         duration = end_time - start_time
-        rest = hmm_handler.parser.rest
-        generated_sequence = hmm_handler.call(rest, duration)
+        rest = cache[sid]['hmm_handler'].parser.rest
+        generated_sequence = cache[sid]['hmm_handler'].call(rest, duration)
         if generated_sequence:
-            socketio.emit('predicted-melody', generated_sequence)
-        cache['keyup_notes'].clear()
+            socketio.emit('predicted-melody', generated_sequence, room=sid)
+        cache[sid]['keyup_notes'].clear()
+
             # cache['last_melody_generation'] = time.time()
 
 
 @socketio.on('keyup')
 def handle_keyup(content):
-    cache['keyup_notes'].append([content['note'], time.time()])
+    sid = request.sid
+    cache[sid]['keyup_notes'].append([content['note'], time.time()])
     # print(cache['keydown_notes'][:1][0][1])
     # print("UP")
     # print(cache)
-    for keydown_note in cache['keydown_notes']:
+    for keydown_note in cache[sid]['keydown_notes']:
         key_start = None
         key_end = None
 
         # find matching keyup event
-        for keyup_note in cache['keyup_notes']:
+        for keyup_note in cache[sid]['keyup_notes']:
             if keydown_note[0] == keyup_note[0] and keyup_note[1] > keydown_note[1]:
                 key_start = keydown_note[1]
                 key_end = keyup_note[1]
-                cache['keydown_notes'].remove(keydown_note)
+                cache[sid]['keydown_notes'].remove(keydown_note)
                 # cache['keyup_notes'].remove(keyup_note)
 
         if key_start and key_end:
             note = keydown_note[0]
             duration = key_end - key_start
             velocity = keydown_note[2]
-            generated_sequence = hmm_handler.call(note, duration, velocity)
+            generated_sequence = cache[sid]['hmm_handler'].call(note, duration, velocity)
             if generated_sequence:
-                socketio.emit('predicted-melody', generated_sequence)
+                socketio.emit('predicted-melody', generated_sequence, room=sid)
 
     # keyup = cache['keyup_notes'][-1]
     # keydown = cache['keydown_notes'][-1]
@@ -269,20 +281,21 @@ def handle_keyup(content):
     #     cache['keydown_notes'] = cache['keydown_notes'][-NUMBER_OF_NOTES:]
 
 
-def background_thread():
+def background_thread(sid):
     print('start thread')
     sock = socket.socket(socket.AF_INET,  # Internet
                          socket.SOCK_DGRAM)  # UDP
     sock.bind((UDP_IP, UDP_PORT))
     sock.setblocking(False)
-    while hmm_handler.triggering == 'beat-based':
+    print(cache[sid]['hmm_handler'].triggering)
+    while cache[sid]['hmm_handler'].triggering == 'beat-based':
         try:
             data = sock.recv(2)  # buffer size is 1024 bytes
             print(data)
             # thread_lock.acquire(False)
-            generated_sequence = hmm_handler.call_beat()
+            generated_sequence = cache[sid]['hmm_handler'].call_beat()
             if generated_sequence:
-                socketio.emit('predicted-melody', generated_sequence)
+                socketio.emit('predicted-melody', generated_sequence, room=sid)
             # thread_lock.release()
             # eventlet.sleep(0.1)
             # time.sleep(1)
@@ -310,15 +323,11 @@ def _run_on_start():
     print("STARTUP LOAD")
 
 
-def update_hmm_list():
-    cache['hmm_list'] = []
-    for filename in os.listdir('pickle/'):
-        cache['hmm_list'].append(os.path.splitext(filename)[0])
+def update_hmm_list(sid):
+    cache[sid]['hmm_list'] = []
+    for filename in os.listdir('pickle/' + sid + '/'):
+        cache[sid]['hmm_list'].append(os.path.splitext(filename)[0])
 
 
 if __name__ == '__main__':
-    # thread = Thread(target=background_thread)
-    # thread.daemon = True
-    # thread.start()
-    # socketio.start_background_task(target=background_thread)
     socketio.run(app, host='0.0.0.0', port=8080)
