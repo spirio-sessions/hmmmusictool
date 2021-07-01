@@ -1,11 +1,11 @@
-## A.I. Duet
+## HMM Music based on AI Duet
 
 A piano that responds to you.
 
 ## OVERVIEW
 
-A.I. Duet is composed of two parts, the front-end which is in the `static` folder and the back-end which is in the `server` folder. 
-The front-end client establishes a connection via Socket.IO and sends key events to a [Flask](http://flask.pocoo.org/) server. The server takes that input and "continues" if enough notes were played it using [Magenta](https://github.com/tensorflow/magenta) and [TensorFlow](https://www.tensorflow.org/) which is then returned back to the client. 
+HMM Music based on AI Duet is composed of two parts, the front-end which is in the `static` folder and the back-end which is in the `server` folder. 
+The front-end client establishes a connection via Socket.IO and sends key events to a [Flask](http://flask.pocoo.org/) server. The server takes that input and "continues" if enough notes were played it using an HMM which is then returned back to the client. 
 
 ## INSTALLATION
 
@@ -49,23 +49,3 @@ Output is sent on all channels, same for the Input channels.
 ## PIANO KEYBOARD
 
 The piano can also be controlled from your computer keyboard thanks to [Audiokeys](https://github.com/kylestetz/AudioKeys). The center row of the keyboard is the white keys.
-
-## DRUM MAPPING
-Drum sounds are mapped to notes for the sampler:
-
-| Type          | MIDI Note Instrument | Sound Note |
-|---------------|----------------------|------------|
-| Kick          | 36                   | C2         |
-| Snare         | 38                   | D2         |
-| Closed Hi Hat | 42                   | Fs2        |
-| Open Hi Hat   | 46                   | As2        |
-| Low Tom       | 45                   | A2         |
-| Mid Tom       | 48                   | C3         |
-| High Tom      | 50                   | D3         |
-| Ride Cymbal 1 | 51                   | Ds3        |
-
-## AUDIO SAMPLES
-
-Multisampled piano from [Salamander Grand Piano V3](https://archive.org/details/SalamanderGrandPianoV3) by Alexander Holm ([Creative Commons Attribution 3.0](https://creativecommons.org/licenses/by/3.0/)).
-
-String sounds from [MIDI.js Soundfonts](https://github.com/gleitz/midi-js-soundfonts) generated from [FluidR3_GM.sf2](http://www.musescore.org/download/fluid-soundfont.tar.gz) ([Creative Commons Attribution 3.0](https://creativecommons.org/licenses/by/3.0/)).
