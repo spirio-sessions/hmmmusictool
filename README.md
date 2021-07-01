@@ -1,10 +1,10 @@
-## HMM Music
+## HMM Music based on AI Duet
 
 A piano that responds to you.
 
 ## OVERVIEW
 
-HMM Music is composed of two parts, the front-end which is in the `static` folder and the back-end which is in the `server` folder. 
+HMM Music based on AI Duet is composed of two parts, the front-end which is in the `static` folder and the back-end which is in the `server` folder. 
 The front-end client establishes a connection via Socket.IO and sends key events to a [Flask](http://flask.pocoo.org/) server. The server takes that input and "continues" if enough notes were played it using an HMM which is then returned back to the client. 
 
 ## INSTALLATION
