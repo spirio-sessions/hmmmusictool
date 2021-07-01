@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 #
-# midi_input_output.py
-#
-"""Show how to receive MIDI input by setting a callback function."""
+# This class handle music processing and generation with an hidden markov model
 
 from __future__ import print_function
 from parser import Parser
@@ -34,9 +32,6 @@ class HMMHandler:
         self.time_type = time_type
         self.triggering = triggering
         # self.enter = True
-        # print(quantisation)
-        # for i in range(1, 11):
-        #     filenames.append('midi/Sax_' + str(i) + '.mid')
         self.parser = Parser(self.files, verbose=False, time_step=self.quantisation, end_range=2000,
                              layout=self.layout, init_type=self.init_type, pretrain=self.pretrain,
                              note_type=self.note_type, time_type=time_type)
@@ -59,7 +54,6 @@ class HMMHandler:
             self.all_obs.append(so_pair)
         else:
             if self.parser.beats[3] <= duration <= self.parser.beats[len(self.parser.beats) - 1]:
-                # print('pause')
                 self.all_obs.append(so_pair)
         if self.triggering == 'note-based':
             return self.check_for_triggering()
@@ -82,7 +76,6 @@ class HMMHandler:
         return False
 
     def sample(self, octave, prev_note):
-        # print("sample")
         samples = self.hmm.get_sample_so_pairs(self.nr_samples)
         # self.generator.gen_live("../out/live.mid", sample)
         midi_instrument = pretty_midi.Instrument(program=0)

@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# This class handles the storage and manipulation of a hmm of notes.
+# This class handles the storage and manipulation of a hmm.
 from hmmlearn.hmm import MultinomialHMM
 from sklearn import preprocessing
 import numpy as np
@@ -31,10 +31,8 @@ class HiddenMarkovModel(MultinomialHMM):
             self._init_gauss()
         elif init == 'flexible':
             self.states = []
-            # self.states = np.empty((0, 1))
             self.n_states = len(self.states)
             self.observations = []
-            # self.observations = np.empty((0, 1))
             self.n_observations = len(self.observations)
             self.flexible = True
             self._init_empty()
@@ -58,32 +56,26 @@ class HiddenMarkovModel(MultinomialHMM):
         self.n_features = getattr(self, "n_features", self.emissionprob_.shape[1])
 
     def _init_random(self):
-        # print('random')
         self.startprob_ = np.random.rand(self.n_states)
         self.transmat_ = np.random.rand(self.n_states, self.n_states)
         self.emissionprob_ = np.random.rand(self.n_states, self.n_observations)
         self.normalize()
 
     def _init_zeros(self):
-        # print('zeros')
         self.startprob_ = np.zeros(self.n_states)
         self.transmat_ = np.zeros((self.n_states, self.n_states))
         self.emissionprob_ = np.zeros((self.n_states, self.n_observations))
 
     def _init_discrete(self):
-        # print('discrete')
         self._init_zeros()
         self.normalize()
 
     def _init_empty(self):
-        # print('empty')
         self.startprob_ = np.empty((0, 1))
         self.transmat_ = np.empty((0, 1))
         self.emissionprob_ = np.empty((0, 1))
 
     def _init_gauss(self):
-        # TODO: gauss for other note and layout types
-        # print('gauss')
         s = [0, 3] if self.vice_versa else [-3, 3]
         o = [-3, 3] if self.vice_versa else [0, 3]
         self.startprob_ = self._get_gauss_matrix(1, self.n_states, s, s)[0]
@@ -141,10 +133,8 @@ class HiddenMarkovModel(MultinomialHMM):
         return self.sample(nr_samples)
 
     def train(self, so_pairs, diy=False, weight=50, pretrain=True):
-        # TODO: give correct weight
         weight = weight / 100
         # extend probabilities for flexible model
-        # TODO: shrink
         if self.flexible:
             for so_pair in so_pairs:
                 self.extend_probabilities(so_pair)
@@ -154,21 +144,16 @@ class HiddenMarkovModel(MultinomialHMM):
         old_emissions = self.emissionprob_
         # train new probabilities
         if diy:
-            # print("train diy")
             self._init_zeros()
             self.fit_diy(so_pairs)
             self.norm()
         else:
-            # print("train model")
             if self.flexible or (self.init == 'zero' and not pretrain):
-                # print("setup")
                 self._init_zeros()
                 self.fit_diy(so_pairs)
                 self.normalize()
             obs_index_vector = list(
                 map(lambda x: self.observations.index(x.observation), so_pairs))
-            # obs_index_vector = list(
-            #     map(lambda x: self.observations.tolist().index(x.observation), so_pairs))
             X = np.array([obs_index_vector]).T
             self.fit(X)
         # calculate weighted probabilities from old and new
@@ -189,7 +174,6 @@ class HiddenMarkovModel(MultinomialHMM):
     def extend_probabilities(self, so_pair):
         if so_pair.state not in self.states:
             self.states.append(so_pair.state)
-            # self.states = np.append(self.states, so_pair.state)
             self.startprob_ = np.append(self.startprob_, 0)
             self.transmat_ = self.extend_matrix(self.transmat_, len(self.states), len(self.states))
             self.emissionprob_ = self.extend_matrix(self.emissionprob_, len(self.states),
@@ -197,7 +181,6 @@ class HiddenMarkovModel(MultinomialHMM):
             self.n_components = len(self.states)
             self.n_states = len(self.states)
         if so_pair.observation not in self.observations:
-            # self.observations = np.append(self.observations, so_pair.observation)
             self.observations.append(so_pair.observation)
             self.emissionprob_ = self.extend_matrix(self.emissionprob_, len(self.states),
                                                           len(self.observations))
@@ -226,9 +209,7 @@ class HiddenMarkovModel(MultinomialHMM):
 
     def get_sample_so_pairs(self, nr_samples):
         so_pairs = []
-        # index_prev = self.states.index(prev_note)
         observation_indices, state_indices = self.sample(nr_samples)
-        # observation_indices, state_indices = self.sample(nr_samples, index_prev)
         for o_index, s_index in enumerate(state_indices):
             ob = self.observations[observation_indices[o_index][0]]
             st = self.states[s_index]
@@ -251,7 +232,6 @@ class HiddenMarkovModel(MultinomialHMM):
     def learn_startprob(self, notes):
         for note in notes:
             itemindex = self.states.index(note.note)
-            # itemindex = numpy.where(self.states == note.note)[0][0]
             self.startprob_[itemindex] += 1
         self.startprob_ = self.normalize_1D_array(self.startprob_)
 
@@ -262,35 +242,25 @@ class HiddenMarkovModel(MultinomialHMM):
                 prev = note
             else:
                 curr = note
-                # index_prev = numpy.where(self.states == prev.note)[0][0]
                 index_prev = self.states.index(prev.note)
-                # index_curr = numpy.where(self.states == curr.note)[0][0]
                 index_curr = self.states.index(curr.note)
                 self.transmat_[index_prev][index_curr] += 1
                 prev = curr
         self.transmat_ = self.normalize_2D_array(self.transmat_)
 
     def addStartprob(self, state):
-        # index_prev = numpy.where(self.states == state)[0][0]
         index_prev = self.states.index(state)
         self.startprob_[index_prev] += 1
 
     def addEmissionprob(self, state, observation):
-        # index_prev = numpy.where(self.states == state)[0][0]
         index_prev = self.states.index(state)
         index_duration = self.observations.index(observation)
         self.emissionprob_[index_prev][index_duration] += 1
-        #if self.multitone:
-            #self.emissionprob_[index_prev][0] += 1
 
     def addTransmat(self, from_state, to_state):
-        # index_prev = numpy.where(self.states == from_state)[0][0]
         index_prev = self.states.index(from_state)
-        # index_curr = numpy.where(self.states == to_state)[0][0]
         index_curr = self.states.index(to_state)
         self.transmat_[index_prev][index_curr] += 1
-
-    # def get_emissionprob(self, notes):
 
     def normalize(self):
         self.replace_zeros()
@@ -318,10 +288,6 @@ class HiddenMarkovModel(MultinomialHMM):
     def normalize_array(array):
         sum_of_values = array.sum()
         return array / sum_of_values
-        # sum_of_rows = array.sum(axis=axis, keepdims=1)
-        # array = array / sum_of_rows
-        # array[np.isnan(array) | np.isinf(array)] = 0.0
-        # return array
 
     @staticmethod
     def normalize_2D_array(array):
@@ -329,7 +295,7 @@ class HiddenMarkovModel(MultinomialHMM):
 
     @staticmethod
     def normalize_1D_array(array):
-        norm = np.linalg.norm(array)
+        # norm = np.linalg.norm(array)
         # return array / norm
         return array / array.sum(axis=None, keepdims=1)
 
@@ -355,6 +321,7 @@ class HiddenMarkovModel(MultinomialHMM):
 
 
 if __name__ == '__main__':
+    # test program
     s = np.arange(0, 500, 250)
     o = np.arange(60, 64)
     print("states")
@@ -372,11 +339,6 @@ if __name__ == '__main__':
         [0.0, 0.0, 0.0, 0.0]
     ])
     m_hmm.normalize()
-    # m_hmm.model.startprob_ = np.array([0.5, 0.5])
-    # m_hmm.model.transmat_ = np.array([[0.5, 0.5],
-    #                                   [0.5, 0.5]])
-    # m_hmm.model.emissionprob_ = np.array([[0.25, 0.25, 0.5],
-    #                                       [0.0, 0.5, 0.5]])
     note_vector = [60, 61, 62, 60, 60, 60, 60, 60]
     # note_index_vector = list(map(lambda x: m_hmm.observations.tolist().index(x), note_vector))
     note_index_vector = list(map(lambda x: m_hmm.observations.index(x), note_vector))

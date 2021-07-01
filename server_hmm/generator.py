@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# This class handles the generation of a new song given a markov chain
+# This class handles the generation of a new song given a hmm
 # containing the note transitions and their frequencies.
 from my_hmm import HiddenMarkovModel
 

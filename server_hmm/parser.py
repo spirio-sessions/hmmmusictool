@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# This class handles the parsing of a midi file and builds a hidden markov model from it.
+# This class handles the parsing of a midi data and builds a hidden markov model from it.
 
 import mido
 import numpy as np
@@ -38,6 +38,7 @@ class Parser:
         self.rest = self.notes[-1]
         # self.velocities = [8, 20, 31, 42, 53, 64, 80, 96, 112, 127]
         self.velocities = list(range(8, 131, 5))
+        # switch layout
         if self.layout == 'joint':
             states = [0]
             observations = self.get_joint_observations()
@@ -56,7 +57,6 @@ class Parser:
             vice_versa = True
         self.my_hmm = HiddenMarkovModel(states, observations, init_type, False, vice_versa)
         if pretrain:
-            # print('pretrain')
             self.pretty_parse_gen(verbose)
 
     def get_joint_observations(self):
@@ -78,7 +78,6 @@ class Parser:
             # INTERVALS + REST 13
             return list(range(-12, 14))
 
-    # TODO: intervals
     def _get_durations(self, time_type):
         if time_type == 'ms':
             # DURATION IN MS
@@ -90,10 +89,6 @@ class Parser:
     def beats_from_tempo(self):
         beats_micros = [int(self.tempo / 8), int(self.tempo / 4), int(self.tempo / 2),
                         int(self.tempo), int(self.tempo * 2), int(self.tempo * 4)]
-        # np.array(
-        #     [int(self.tempo / 16), int(self.tempo / 8), int(self.tempo / 4), int(self.tempo / 2), int(self.tempo),
-        #      int(self.tempo * 2), int(self.tempo * 4)])
-        # return (beats_micros / 1000).astype(int)
         return [x / 1000 for x in beats_micros]
 
     def find_so_pair(self, note, duration, prev_note=0, velocity=100):
@@ -126,40 +121,10 @@ class Parser:
 
         return self.my_hmm.serialize(state, obs)
 
-    def parse_multi(self, verbose=False):
-        """
-        This function handles the reading of the midi and chunks the
-        notes into sequenced "chords", which are inserted into the
-        hmm.
-        """
-        for filename in self.filenames:
-            midi = mido.MidiFile(filename)
-            self.ticks_per_beat = midi.ticks_per_beat
-            previous_chunk = []
-            current_chunk = []
-            for track in midi.tracks:
-                for message in track:
-                    if verbose:
-                        print(message)
-                    if message.type == "set_tempo":
-                        self.tempo = message.tempo
-                    elif message.type == "note_on":
-                        if message.time == 0:
-                            if message.velocity != 0:
-                                current_chunk.append(message.note)
-                        else:
-                            self._sequence(previous_chunk,
-                                           current_chunk,
-                                           message.time)
-                            previous_chunk = current_chunk
-                            current_chunk = []
-        self.my_hmm.normalize()
-
     def _parse_gen(self, verbose=False):
         """
-        This function handles the reading of the midi and chunks the
-        notes into sequenced "chords", which are inserted into the
-        hmm.
+        This function handles the reading of the midi and parses the notes into state-observation pairs,
+        which are used to train the hmm. (mido)
         """
         if os.path.exists(self.filenames):
             so_pairs = []
@@ -202,9 +167,8 @@ class Parser:
 
     def pretty_parse_gen(self, verbose=False):
         """
-        This function handles the reading of the midi and chunks the
-        notes into sequenced "chords", which are inserted into the
-        hmm.
+        This function handles the reading of the midi and parses the notes into state-observation pairs,
+        which are used to train the hmm. (pretty_midi)
         """
         if os.path.exists(self.filenames):
             so_pairs = []
@@ -216,13 +180,13 @@ class Parser:
                         midi_data = pretty_midi.PrettyMIDI(self.filenames + filename)
                     except:
                         continue
-                    # midi_data.remove_invalid_notes()
-                    # TODO: comment
+                    midi_data.remove_invalid_notes()
                     for instrument in midi_data.instruments:
-                        if instrument.program in range(0, 7):
-                            print(instrument.name)
-                            print(instrument.program)
-                        # if not instrument.is_drum:
+                        # (for jazz midi dataset preprocessing)
+                        # if instrument.program in range(0, 7):
+                        #     print(instrument.name)
+                        #     print(instrument.program)
+                        if not instrument.is_drum:
                             for note in instrument.notes:
                                 if note.pitch in range(21, 110):
                                     if verbose:
@@ -262,7 +226,6 @@ class Parser:
             return self._round_up(ms)
         else:
             return self._round_down(ms)
-            # if down != 0 else self._round_up(ms)
 
     def _round_up(self, ms):
         return int(ms - (ms % self.time_step) + self.time_step)
@@ -272,57 +235,19 @@ class Parser:
 
     @staticmethod
     def _find_nearest(array, value):
+        # find nearest value in array for an given value
         return min(array, key=lambda x: abs(x - value))
-
-    # def _find_nearest(array, value):
-    #     array = np.asarray(array)
-    #     idx = (np.abs(array - value)).argmin()
-    #     return array[idx]
 
     def get_hmm(self):
         return self.my_hmm
 
-    # @staticmethod
-    # def get_notes_chords_rests(instrument_type, path):
-    #     try:
-    #         midi = converter.parse(path)
-    #         parts = instrument.partitionByInstrument(midi)
-    #         note_list = []
-    #         for music_instrument in range(len(parts)):
-    #             if parts.parts[music_instrument].id in instrument_type:
-    #                 for element_by_offset in stream.iterator.OffsetIterator(parts[music_instrument]):
-    #                     for entry in element_by_offset:
-    #                         if isinstance(entry, note.Note):
-    #                             note_list.append(str(entry.pitch))
-    #                         elif isinstance(entry, chord.Chord):
-    #                             note_list.append('.'.join(str(n) for n in entry.normalOrder))
-    #                         elif isinstance(entry, note.Rest):
-    #                             note_list.append('Rest')
-    #         return note_list
-    #     except Exception as e:
-    #         print("failed on ", path)
-    #         pass
-
 
 if __name__ == "__main__":
-    # with mido.midifiles.MidiFile() as midi:
-    #     track = mido.MidiTrack()
-    #     notes = [65, 67, 67, 65, 67, 67, 64, 67, 67, 64, 67, 67, 62, 69, 69, 62, 69, 69, 72, 72, 72, 72]
-    #     for note in notes:
-    #         message = [mido.Message('note_on', note=note, velocity=127, time=0),
-    #                    mido.Message('note_on', note=note, velocity=0, time=500)]
-    #         track.extend(message)
-    #     midi.tracks.append(track)
-    #     midi.save("TestMidi.mid")
-    # filenames = []
-    # for i in range(1, 11):
-    #     filenames.append('../midi/Sax_' + str(i) + '.mid')
-    #
-    # print(filenames)
+    # test programm
     parser = Parser('jazz_midi/', verbose=False, time_step=10, end_range=2000, note_type='semitones',
                     init_type='flexible', layout='note-time')
 
-    # parser._parse()
+    parser._parse()
     hmm = parser.get_hmm()
     print("States")
     print(hmm.states)
@@ -339,7 +264,7 @@ if __name__ == "__main__":
     print("Emissionprob")
     hmm.print_2D_array(hmm.emissionprob_)
 
-    # hmm._check()
+    hmm._check()
     for i in range(len(hmm.observations)):
         swap = i + np.argmin(hmm.observations[i:])
         (hmm.observations[i], hmm.observations[swap]) = (hmm.observations[swap], hmm.observations[i])
@@ -357,11 +282,3 @@ if __name__ == "__main__":
     print()
     print("Emissionprob2")
     hmm.print_2D_array(hmm.emissionprob_)
-
-    # hmm.get_sample_notes(100)
-
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument("input_file", help="The midi file input")
-    # args = parser.parse_args()
-    # print(Parser(args.input_file, verbose=False).get_chain())
-    # print('No issues parsing {}'.format(args.input_file))
