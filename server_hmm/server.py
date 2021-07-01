@@ -1,6 +1,4 @@
 import os
-import shutil
-
 from flask import send_file
 from flask_socketio import SocketIO
 import time
@@ -11,8 +9,6 @@ from hmm_handler import HMMHandler
 import pickle
 import socket
 import sys
-import eventlet
-from eventlet import tpool
 # from generator import Generator
 
 UDP_IP = "127.0.0.1"
@@ -21,7 +17,7 @@ UDP_PORT = 9001
 app = Flask(__name__, static_url_path='', static_folder=os.path.abspath('../static'))
 CORS(app)
 app.config['SECRET_KEY'] = 'secret!'
-socketio = SocketIO(app, async_mode="eventlet")
+socketio = SocketIO(app, async_mode="gevent")
 socketio.init_app(app, cors_allowed_origins="*")
 thread = None
 # generator = Generator()
