@@ -210,7 +210,7 @@ def background_thread(sid):
             socketio.sleep(0)
         except socket.error as e:
             err = e.args[0]
-            if err == 35 or err == 11:
+            if err == 35:
                 socketio.sleep(1)
                 # print('No data available')
                 continue
