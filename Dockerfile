@@ -35,4 +35,5 @@ RUN npm run build
 WORKDIR /src/server_hmm/
 
 EXPOSE 8080
+EXPOSE 9001
 CMD [ "python3", "server.py" ]
